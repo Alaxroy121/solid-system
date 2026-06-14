@@ -98,7 +98,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         wget \
         nodejs \
         npm \
-        libicu72 \
         ca-certificates \
         gcc \
         g++ \
