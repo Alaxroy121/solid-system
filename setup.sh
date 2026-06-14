@@ -4,18 +4,10 @@
 # ═══════════════════════════════════════════════════════════════════
 #
 # USAGE:
-#   curl -fsSL https://raw.githubusercontent.com/<YOUR_USER>/setup.sh | sudo bash
-#       — or —
 #   sudo bash setup.sh
+#       — or —
+#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Alaxroy121/solid-system/main/setup.sh)"
 #
-# This script:
-#   1. Installs Docker on a bare Amazon Linux 2023 (aarch64)
-#   2. Clones the AniwatchTvdl repo
-#   3. Fixes the Dockerfile for ARM64 compatibility
-#   4. Creates a .env template for your Telegram bot credentials
-#   5. Builds & runs the container
-#
-# Requirements: root/sudo access, internet connection
 # ═══════════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -26,70 +18,83 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-info()    { echo -e "${CYAN}[INFO]${NC} $*"; }
-success() { echo -e "${GREEN}[OK]${NC}   $*"; }
+banner()  { echo -e "\n${CYAN}${BOLD}══════════════════════════════════════════════════════${NC}"; echo -e "${CYAN}${BOLD}  $*${NC}"; echo -e "${CYAN}${BOLD}══════════════════════════════════════════════════════${NC}\n"; }
+info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
+success() { echo -e "${GREEN}[✔ OK]${NC} $*"; }
 warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
-error()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
+fail()    { echo -e "${RED}[FAIL]${NC} $*"; exit 1; }
 
 # ── Sanity checks ────────────────────────────────────────────────
-[[ $EUID -ne 0 ]] && error "Please run as root:  sudo bash $0"
+[[ $EUID -ne 0 ]] && fail "Please run as root:  sudo bash $0"
 
-info "Detecting system..."
-ARCH=$(uname -m)
-info "  Architecture: ${BOLD}${ARCH}${NC}"
+banner "AniwatchTvdl — ARM64 Docker Setup"
+info "Architecture: ${BOLD}$(uname -m)${NC}"
+info "OS:           ${BOLD}$(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || uname -s)${NC}"
+info "RAM:          ${BOLD}$(free -h | awk '/Mem:/{print $2}')${NC}"
+info "Disk:         ${BOLD}$(df -h / | awk 'NR==2{print $4}') free${NC}"
+echo ""
 
-if [[ "$ARCH" != "aarch64" && "$ARCH" != "arm64" ]]; then
-    warn "Expected aarch64/arm64, detected ${ARCH}. Proceeding anyway..."
-fi
-
-# ── Step 1: Install essential tools ──────────────────────────────
-info "Step 1/6 — Installing essential tools (git, tar, curl)..."
-dnf install -y git tar curl gzip >/dev/null 2>&1 || yum install -y git tar curl gzip >/dev/null 2>&1
+# ═══════════════════════════════════════════════════════════════════
+banner "Step 1/6 — Installing essential tools"
+# ═══════════════════════════════════════════════════════════════════
+info "Running: dnf install -y git tar curl gzip ..."
+echo ""
+dnf install -y git tar curl gzip
+echo ""
 success "Essential tools installed"
 
-# ── Step 2: Install Docker ───────────────────────────────────────
-info "Step 2/6 — Installing Docker..."
+# ═══════════════════════════════════════════════════════════════════
+banner "Step 2/6 — Installing Docker"
+# ═══════════════════════════════════════════════════════════════════
 if command -v docker &>/dev/null; then
     success "Docker already installed: $(docker --version)"
 else
-    # Amazon Linux 2023 method
-    dnf install -y docker >/dev/null 2>&1 || {
-        warn "dnf docker failed, trying amazon-linux-extras..."
-        amazon-linux-extras install -y docker >/dev/null 2>&1 || {
-            warn "Trying direct install from get.docker.com..."
-            curl -fsSL https://get.docker.com | sh
-        }
+    info "Running: dnf install -y docker ..."
+    echo ""
+    dnf install -y docker || {
+        warn "dnf docker failed, trying get.docker.com ..."
+        curl -fsSL https://get.docker.com | sh
     }
+    echo ""
     success "Docker installed: $(docker --version)"
 fi
 
-# Start & enable Docker
+info "Starting Docker service..."
 systemctl start docker 2>/dev/null || true
 systemctl enable docker 2>/dev/null || true
-success "Docker service started & enabled"
+success "Docker service is running"
 
-# ── Step 3: Clone the repository ─────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════
+banner "Step 3/6 — Cloning AniwatchTvdl repository"
+# ═══════════════════════════════════════════════════════════════════
 WORK_DIR="/opt/AniwatchTvdl"
-info "Step 3/6 — Cloning repository to ${WORK_DIR}..."
 
 if [[ -d "${WORK_DIR}" ]]; then
-    warn "Directory ${WORK_DIR} already exists — pulling latest changes"
-    cd "${WORK_DIR}" && git pull --ff-only 2>/dev/null || true
+    warn "Directory ${WORK_DIR} already exists — pulling latest"
+    cd "${WORK_DIR}"
+    git pull --ff-only || true
 else
+    info "Running: git clone https://github.com/abhinai2244/AniwatchTvdl.git ${WORK_DIR}"
+    echo ""
     git clone https://github.com/abhinai2244/AniwatchTvdl.git "${WORK_DIR}"
 fi
 cd "${WORK_DIR}"
-success "Repository cloned"
+echo ""
+success "Repository ready at ${WORK_DIR}"
+info "Files:"
+ls -la "${WORK_DIR}/"
 
-# ── Step 4: Write the fixed ARM64 Dockerfile ─────────────────────
-info "Step 4/6 — Writing ARM64-optimized Dockerfile..."
+# ═══════════════════════════════════════════════════════════════════
+banner "Step 4/6 — Writing ARM64-optimized Dockerfile"
+# ═══════════════════════════════════════════════════════════════════
+info "The original Dockerfile is broken (x64 only + incomplete)"
+info "Writing fixed multi-stage ARM64 Dockerfile..."
 
 cat > "${WORK_DIR}/Dockerfile" << 'DOCKERFILE_EOF'
 # ─────────────────────────────────────────────────────────────────
 # AniwatchTvdl (Cantarella Bot) — ARM64-optimized Dockerfile
-# Targets: Amazon Linux 2023 / ARM64 (Graviton) / 1GB RAM / 10GB SSD
 # ─────────────────────────────────────────────────────────────────
 
 # Stage 1: Build N_m3u8DL-RE from source for linux-arm64
@@ -106,9 +111,7 @@ RUN dotnet publish -c Release -r linux-arm64 --self-contained true \
     -p:PublishSingleFile=true -p:PublishTrimmed=true \
     -o /out
 
-# ─────────────────────────────────────────────────────────────────
-# Stage 2: Final runtime image — kept small for 10GB SSD
-# ─────────────────────────────────────────────────────────────────
+# Stage 2: Final runtime image
 FROM --platform=linux/arm64 python:3.11-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -134,19 +137,22 @@ RUN mkdir -p /app/binary && \
 CMD ["python3", "-m", "cantarella"]
 DOCKERFILE_EOF
 
+echo ""
 success "Dockerfile written"
+info "Preview:"
+cat "${WORK_DIR}/Dockerfile"
 
-# ── Step 5: Create .env template ─────────────────────────────────
-info "Step 5/6 — Setting up environment configuration..."
-
+# ═══════════════════════════════════════════════════════════════════
+banner "Step 5/6 — Environment configuration"
+# ═══════════════════════════════════════════════════════════════════
 if [[ ! -f "${WORK_DIR}/.env" ]]; then
     cat > "${WORK_DIR}/.env" << 'ENV_EOF'
 # ═══════════════════════════════════════════════════════════
-# AniwatchTvdl (Cantarella Bot) — Environment Configuration
+# AniwatchTvdl — Fill in your Telegram credentials below
 # ═══════════════════════════════════════════════════════════
-# Get API_ID & API_HASH from https://my.telegram.org
-# Get BOT_TOKEN from @BotFather on Telegram
-# Get MONGO_URL from https://www.mongodb.com/atlas (free tier)
+# API_ID & API_HASH → https://my.telegram.org
+# BOT_TOKEN        → @BotFather on Telegram
+# MONGO_URL        → https://www.mongodb.com/atlas (free)
 # ═══════════════════════════════════════════════════════════
 
 API_ID=
@@ -164,59 +170,87 @@ ADMIN_URL=@V_Sbotmaker
 FSUB_PIC=
 ENV_EOF
 
-    warn "╔══════════════════════════════════════════════════════════╗"
-    warn "║  .env file created at: ${WORK_DIR}/.env                 ║"
-    warn "║  You MUST edit it with your Telegram credentials        ║"
-    warn "║  before starting the bot!                               ║"
-    warn "║                                                         ║"
-    warn "║  Run:  nano ${WORK_DIR}/.env                            ║"
-    warn "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    warn "┌─────────────────────────────────────────────────────┐"
+    warn "│  .env file created at: ${WORK_DIR}/.env             │"
+    warn "│                                                     │"
+    warn "│  ⚠  You MUST edit it before starting the bot!       │"
+    warn "│                                                     │"
+    warn "│  Run:  nano ${WORK_DIR}/.env                        │"
+    warn "└─────────────────────────────────────────────────────┘"
+    echo ""
 else
-    success ".env already exists — keeping your existing configuration"
+    success ".env already exists — keeping your existing config"
 fi
 
-# ── Step 6: Build & Run ──────────────────────────────────────────
-info "Step 6/6 — Building Docker image (this may take 5-15 min on ARM64)..."
+# ═══════════════════════════════════════════════════════════════════
+banner "Step 6/6 — Building Docker image"
+# ═══════════════════════════════════════════════════════════════════
 
-# Enable Docker BuildKit for faster multi-stage builds
-export DOCKER_BUILDKIT=1
-
-# Configure Docker to limit memory usage during build (important for 1GB RAM)
-# Add swap if not already present
+# -- Add swap if needed --
+info "Checking swap..."
 if [[ $(swapon --show | wc -l) -le 1 ]]; then
-    info "Adding 1GB swap file to help with build (1GB RAM is tight)..."
-    if [[ ! -f /swapfile ]]; then
-        dd if=/dev/zero of=/swapfile bs=1M count=1024 status=progress 2>/dev/null || true
-        chmod 600 /swapfile
-        mkswap /swapfile >/dev/null 2>&1
-    fi
-    swapon /swapfile 2>/dev/null || true
-    success "Swap enabled"
+    info "No swap found. Creating 1GB swap file for Docker build..."
+    info "  → dd if=/dev/zero of=/swapfile bs=1M count=1024"
+    dd if=/dev/zero of=/swapfile bs=1M count=1024 status=progress || true
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    echo ""
+    success "1GB swap enabled"
+    free -h
+    echo ""
+else
+    success "Swap already active"
+    free -h
+    echo ""
 fi
 
-# Stop any existing container
-docker stop aniwatchtv 2>/dev/null || true
-docker rm aniwatchtv 2>/dev/null || true
+# -- Stop old container if running --
+info "Cleaning up old containers..."
+docker stop aniwatchtv 2>/dev/null && info "  Stopped old container" || true
+docker rm aniwatchtv 2>/dev/null && info "  Removed old container" || true
+echo ""
 
-# Build the image
-docker build -t aniwatchtv:latest "${WORK_DIR}"
+# -- Build --
+export DOCKER_BUILDKIT=1
+info "Starting Docker build (this will take 10-20 min on ARM64)..."
+info "You WILL see full build progress below ↓"
+echo ""
+echo -e "${YELLOW}────────────────── DOCKER BUILD START ──────────────────${NC}"
+echo ""
 
+docker build --progress=plain -t aniwatchtv:latest "${WORK_DIR}" 2>&1
+
+echo ""
+echo -e "${GREEN}────────────────── DOCKER BUILD DONE ───────────────────${NC}"
+echo ""
 success "Docker image built successfully!"
+info "Image size: $(docker images aniwatchtv:latest --format '{{.Size}}')"
 
-# Check if .env has been configured
+# ═══════════════════════════════════════════════════════════════════
+banner "✅ Setup Complete!"
+# ═══════════════════════════════════════════════════════════════════
+
+# Check if .env is configured
 if grep -q "^API_ID=$" "${WORK_DIR}/.env" 2>/dev/null; then
     echo ""
-    warn "═══════════════════════════════════════════════════════════"
-    warn " .env is NOT configured yet!"
-    warn " Edit it first:   nano ${WORK_DIR}/.env"
-    warn " Then start bot:  docker run -d --name aniwatchtv \\"
-    warn "                    --env-file ${WORK_DIR}/.env \\"
-    warn "                    --restart unless-stopped \\"
-    warn "                    --memory=768m \\"
-    warn "                    aniwatchtv:latest"
-    warn "═══════════════════════════════════════════════════════════"
+    echo -e "${YELLOW}${BOLD}  ⚠  .env is NOT configured yet!${NC}"
+    echo ""
+    echo -e "  ${BOLD}Next steps:${NC}"
+    echo ""
+    echo -e "  ${CYAN}1.${NC} Edit your credentials:"
+    echo -e "     ${BOLD}nano /opt/AniwatchTvdl/.env${NC}"
+    echo ""
+    echo -e "  ${CYAN}2.${NC} Start the bot:"
+    echo -e "     ${BOLD}docker run -d --name aniwatchtv \\${NC}"
+    echo -e "     ${BOLD}  --env-file /opt/AniwatchTvdl/.env \\${NC}"
+    echo -e "     ${BOLD}  --restart unless-stopped \\${NC}"
+    echo -e "     ${BOLD}  --memory=768m \\${NC}"
+    echo -e "     ${BOLD}  aniwatchtv:latest${NC}"
+    echo ""
 else
-    info "Starting the bot container..."
+    info "Starting the bot..."
     docker run -d \
         --name aniwatchtv \
         --env-file "${WORK_DIR}/.env" \
@@ -224,18 +258,14 @@ else
         --memory=768m \
         aniwatchtv:latest
 
-    success "Bot is running! Check logs with:  docker logs -f aniwatchtv"
+    echo ""
+    success "Bot is RUNNING!"
+    echo ""
+    echo -e "  ${CYAN}Check logs:${NC}   docker logs -f aniwatchtv"
+    echo -e "  ${CYAN}Restart:${NC}      docker restart aniwatchtv"
+    echo -e "  ${CYAN}Stop:${NC}         docker stop aniwatchtv"
 fi
 
 echo ""
-echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}${BOLD}  ✅ AniwatchTvdl setup complete!${NC}"
-echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════${NC}"
-echo ""
-echo -e "  ${CYAN}Useful commands:${NC}"
-echo -e "    docker logs -f aniwatchtv      — View live logs"
-echo -e "    docker restart aniwatchtv      — Restart the bot"
-echo -e "    docker stop aniwatchtv         — Stop the bot"
-echo -e "    docker start aniwatchtv        — Start the bot"
-echo -e "    docker system prune -af        — Clean up disk space"
+echo -e "  ${CYAN}Free disk:${NC}    docker system prune -af"
 echo ""
