@@ -106,7 +106,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libicu72 \
         ca-certificates \
         gcc \
+        g++ \
+        make \
         python3-dev \
+        libffi-dev \
+        libssl-dev \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -119,7 +123,9 @@ RUN wget -q https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.2.1-beta
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
+RUN sed -i '/curl_cffi/d' requirements.txt && \
+    pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir curl_cffi --pre && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY . .
