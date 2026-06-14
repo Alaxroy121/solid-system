@@ -39,10 +39,10 @@ echo ""
 # ═══════════════════════════════════════════════════════════════════
 banner "Step 1/6 — Installing essential tools"
 # ═══════════════════════════════════════════════════════════════════
-info "Running: dnf install -y git tar gzip ..."
-info "(Skipping curl — AL2023 has curl-minimal pre-installed)"
+info "Running: dnf install -y --allowerasing git tar gzip ..."
+info "(Using --allowerasing to resolve curl-minimal vs curl conflict)"
 echo ""
-dnf install -y git tar gzip
+dnf install -y --allowerasing git tar gzip
 echo ""
 success "Essential tools installed"
 
