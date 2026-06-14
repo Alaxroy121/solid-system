@@ -105,6 +105,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         wget \
         libicu72 \
         ca-certificates \
+        gcc \
+        python3-dev \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -117,7 +119,8 @@ RUN wget -q https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.2.1-beta
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
