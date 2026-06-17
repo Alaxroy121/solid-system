@@ -29,7 +29,7 @@ dnf install -y --allowerasing git tar curl gzip gcc python3-devel nano
 dnf update -y
 
 # ==============================================================================
-# 2. Swap Memory Setup (Crucial for 1GB RAM instances)
+# 2. Swap Memory Setup (Crucial for 1GB/2GB RAM instances)
 # ==============================================================================
 echo -e "\n${YELLOW}Step 2/5 — Configuring Swap Memory...${NC}"
 if free | awk '/^Swap:/ {exit !$2}'; then
@@ -47,7 +47,7 @@ fi
 # ==============================================================================
 # 3. Docker Installation
 # ==============================================================================
-echo -e "\n${YELLOW}Step 3/5 — Installing Docker...${NC}"
+echo -e "\n${YELLOW}Step 3/5 — Installing Docker & Docker Compose...${NC}"
 if ! command -v docker &> /dev/null; then
     dnf install -y docker
     systemctl enable docker
@@ -57,6 +57,16 @@ if ! command -v docker &> /dev/null; then
 else
     echo -e "${GREEN}[OK] Docker is already installed.${NC}"
     systemctl start docker || true
+fi
+
+# Install docker-compose if missing
+if ! docker compose version &> /dev/null; then
+    echo "Installing Docker Compose plugin..."
+    DOCKER_CONFIG=${DOCKER_CONFIG:-/usr/local/lib/docker}
+    mkdir -p $DOCKER_CONFIG/cli-plugins
+    curl -SL https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-aarch64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
+    chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+    ln -s $DOCKER_CONFIG/cli-plugins/docker-compose /usr/bin/docker-compose || true
 fi
 
 # ==============================================================================
@@ -84,9 +94,9 @@ API_HASH=
 OWNER_ID=
 MAIN_CHANNEL=
 LOG_CHANNEL=
-MONGO_URI=mongodb+srv://...
+MONGO_URI=mongodb://mongo:27017/animedekho
 ENV_EOF
-    echo -e "${GREEN}[INFO] Created template .env file.${NC}"
+    echo -e "${GREEN}[INFO] Created template .env file with local MongoDB URI.${NC}"
 fi
 
 # Overwrite Dockerfile with ARM64 Optimized version
@@ -126,17 +136,58 @@ RUN mkdir -p /app/data
 CMD ["python", "main.py"]
 DOCKERFILE_EOF
 
+# Overwrite docker-compose.yml to enforce memory limits
+cat > docker-compose.yml << 'COMPOSE_EOF'
+version: "3.8"
+
+services:
+  bot:
+    build: .
+    container_name: animedekho-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - bot-data:/app/data
+      - bot-tmp:/tmp/animedekho_dl
+    depends_on:
+      - mongo
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  mongo:
+    image: mongo:7
+    container_name: animedekho-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  bot-data:
+  bot-tmp:
+  mongo-data:
+COMPOSE_EOF
+
 # ==============================================================================
-# 5. Build Docker Image
+# 5. Build and Deploy using Docker Compose
 # ==============================================================================
-echo -e "\n${YELLOW}Step 5/5 — Building Docker Image (This will take a few minutes)...${NC}"
+echo -e "\n${YELLOW}Step 5/5 — Building and Starting (Docker Compose)...${NC}"
+# Use standard docker build to utilize cache without compose cache bugs, then up
 docker build --progress=plain -t animedekho:latest .
+docker compose up -d
 
 echo -e "\n${GREEN}======================================================${NC}"
 echo -e "${GREEN}    SETUP COMPLETE! 🎉                                ${NC}"
 echo -e "${GREEN}======================================================${NC}"
-echo -e "To start your bot, first edit your environment variables:"
+echo -e "To configure your bot, edit your environment variables:"
 echo -e "  ${YELLOW}sudo nano /opt/animedekho-bot/.env${NC}"
-echo -e "\nThen run the bot using this command:"
-echo -e "  ${YELLOW}sudo docker run -d --name animedekho_bot --env-file /opt/animedekho-bot/.env --restart unless-stopped --memory=768m animedekho:latest${NC}"
-echo -e "\nTo check logs: ${YELLOW}sudo docker logs animedekho_bot${NC}"
+echo -e "\nAfter editing, apply the changes by running:"
+echo -e "  ${YELLOW}cd /opt/animedekho-bot && sudo docker compose up -d${NC}"
+echo -e "\nTo check bot logs:  ${YELLOW}sudo docker logs -f animedekho-bot${NC}"
