@@ -130,7 +130,7 @@ DOCKERFILE_EOF
 # 5. Build Docker Image
 # ==============================================================================
 echo -e "\n${YELLOW}Step 5/5 — Building Docker Image (This will take a few minutes)...${NC}"
-docker build --no-cache --progress=plain -t animedekho:latest .
+docker build --progress=plain -t animedekho:latest .
 
 echo -e "\n${GREEN}======================================================${NC}"
 echo -e "${GREEN}    SETUP COMPLETE! 🎉                                ${NC}"

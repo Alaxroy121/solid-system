@@ -219,7 +219,7 @@ echo ""
 echo -e "${YELLOW}────────────────── DOCKER BUILD START ──────────────────${NC}"
 echo ""
 
-docker build --no-cache --progress=plain -t aniwatchtv:latest "${WORK_DIR}" 2>&1
+docker build --progress=plain -t aniwatchtv:latest "${WORK_DIR}" 2>&1
 
 echo ""
 echo -e "${GREEN}────────────────── DOCKER BUILD DONE ───────────────────${NC}"
