@@ -77,6 +77,10 @@ RUN curl -L -o /tmp/N_m3u8DL-RE.tar.gz \
     tar -xzf /tmp/N_m3u8DL-RE.tar.gz -C /usr/local/bin/ && \
     rm /tmp/N_m3u8DL-RE.tar.gz && \
     chmod +x /usr/local/bin/N_m3u8DL-RE
+
+RUN curl -L -o /usr/local/bin/yt-dlp \
+    "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64" && \
+    chmod +x /usr/local/bin/yt-dlp
 ```
 
 ---
