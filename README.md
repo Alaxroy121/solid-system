@@ -1,201 +1,86 @@
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:1f6feb&height=220&section=header&text=AniwatchTvdl%20Docker&fontSize=50&fontColor=58a6ff&animation=fadeIn&fontAlignY=35&desc=ARM64%20One-Command%20Deployment&descSize=18&descAlignY=55&descColor=8b949e" width="100%" />
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:1f6feb&height=220&section=header&text=Telegram%20Anime%20Bots%20Docker&fontSize=40&fontColor=58a6ff&animation=fadeIn&fontAlignY=35&desc=ARM64%20One-Command%20Deployments&descSize=18&descAlignY=55&descColor=8b949e" width="100%" />
 </p>
 
-<h1 align="center">🐳 AniwatchTvdl — Docker Setup for ARM64</h1>
+<h1 align="center">🐳 Telegram Anime Bots — Docker Setup for ARM64</h1>
 
 <p align="center">
-  <b>One-command Docker build & deploy for the
-  <a href="https://github.com/abhinai2244/AniwatchTvdl">AniwatchTvdl (Cantarella)</a>
-  Telegram Anime Downloader Bot</b>
+  <b>One-command Docker build & deploy scripts for popular Telegram Downloader Bots optimized for ARM64 (Graviton) servers.</b>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Amazon%20Linux%202023-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Amazon Linux 2023" />
   <img src="https://img.shields.io/badge/Arch-ARM64%20(Graviton)-00979D?style=for-the-badge&logo=arm&logoColor=white" alt="ARM64" />
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11" />
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/RAM-1GB%20Optimized-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/Disk-10GB%20SSD-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" />
 </p>
 
 ---
 
 ## 📋 Overview
 
-This repository provides an **ARM64-optimized Docker setup** to deploy the [AniwatchTvdl (Cantarella)](https://github.com/abhinai2244/AniwatchTvdl) Telegram bot on resource-constrained ARM64 servers like **AWS Graviton** instances.
+This repository provides **ARM64-optimized Docker setups** to deploy three popular Telegram bots on resource-constrained ARM64 servers like **AWS Graviton** instances (1GB - 2GB RAM).
 
-### Why is this needed?
+### The ARM64 Problem
+Most Telegram downloader bots ship with `x86_64` binaries of `N_m3u8DL-RE`, `ffmpeg`, and miss C++ compilers for `tgcrypto`. This causes them to instantly crash on ARM64 servers.
 
-The original repository has **3 critical issues** for ARM64 deployment:
-
-| ❌ Problem | ✅ Our Fix |
-|-----------|-----------|
-| Dockerfile is incomplete (truncated mid-line) | Full multi-stage Dockerfile |
-| Ships x86_64-only `N_m3u8DL-RE` binary | Compiles from source for ARM64 |
-| No `WORKDIR`, `COPY`, `pip install`, or `CMD` | Complete build instructions |
+**Our Fix:** These scripts completely rebuild the Docker environments, inject the correct `linux-arm64` binaries, install missing compilers, and configure safe RAM memory limits (to run multiple bots on one server).
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (One-Command Deployments)
 
-### One Command — Does Everything
+SSH into your **Amazon Linux 2023 ARM64** server and run the script for the bot you want to deploy:
 
-SSH into your **Amazon Linux 2023 ARM64** server and run:
-
+### 1. AniwatchTvdl (Cantarella)
 ```bash
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Alaxroy121/solid-system/main/setup.sh)"
 ```
 
-**Or clone & run manually:**
-
+### 2. Hentai DL Bot
 ```bash
-git clone https://github.com/Alaxroy121/solid-system.git
-cd solid-system
-sudo bash setup.sh
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Alaxroy121/solid-system/main/setup-hentai.sh)"
 ```
 
-### What the script does automatically:
-
-```
-Step 1/6 → Installs git, curl, tar (bare AL2023 doesn't have these)
-Step 2/6 → Installs & starts Docker
-Step 3/6 → Clones the AniwatchTvdl source code
-Step 4/6 → Writes the fixed ARM64 Dockerfile
-Step 5/6 → Creates .env template for Telegram credentials
-Step 6/6 → Adds swap + Builds & runs the Docker container
+### 3. Animedekho Bot (Includes local MongoDB)
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Alaxroy121/solid-system/main/setup-animedekho.sh)"
 ```
 
 ---
 
-## ⚙️ Configuration
+## 🛠 Manual Dockerfile Fixes
 
-After the build completes, edit the `.env` file with your credentials:
+If you do not want to use the automated scripts and prefer to manually edit your own `Dockerfile`s for ARM64 compatibility, you must apply the following two fixes:
 
-```bash
-nano /opt/AniwatchTvdl/.env
+### Fix 1: Missing Compilers for Python extensions (`tgcrypto`)
+Add this `apt-get` block to install `ffmpeg` and the required C-compilers:
+```dockerfile
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ffmpeg \
+    curl \
+    ca-certificates \
+    gcc \
+    g++ \
+    make \
+    python3-dev \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 ```
 
-### Required Environment Variables
-
-| Variable | Description | Where to Get |
-|----------|-------------|--------------|
-| `API_ID` | Telegram API ID | [my.telegram.org](https://my.telegram.org) |
-| `API_HASH` | Telegram API Hash | [my.telegram.org](https://my.telegram.org) |
-| `BOT_TOKEN` | Bot token | [@BotFather](https://t.me/BotFather) |
-| `OWNER_ID` | Your Telegram user ID | [@userinfobot](https://t.me/userinfobot) |
-| `MONGO_URL` | MongoDB connection string | [MongoDB Atlas](https://www.mongodb.com/atlas) (free) |
-| `BOT_USERNAME` | Bot username (without @) | Your bot's username |
-| `LOG_CHANNEL` | Channel ID for logs | Create a Telegram channel |
-| `MAIN_CHANNEL` | Main channel ID | Your main channel |
-
-### Optional Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SET_INTERVAL` | `60` | Airing check interval (seconds) |
-| `TARGET_CHAT_ID` | — | Target chat for auto-uploads |
-| `MONGO_NAME` | `cantarellabots` | Database name |
-| `ADMIN_URL` | `@V_Sbotmaker` | Admin contact URL |
-| `FSUB_PIC` | — | Force subscribe image URL |
-
-Then start the bot:
-
-```bash
-docker run -d \
-  --name aniwatchtv \
-  --env-file /opt/AniwatchTvdl/.env \
-  --restart unless-stopped \
-  --memory=768m \
-  aniwatchtv:latest
-```
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│              Docker Multi-Stage Build            │
-├─────────────────────────────────────────────────┤
-│                                                  │
-│  Stage 1: .NET SDK (Build)                       │
-│  ├── Clones N_m3u8DL-RE source                   │
-│  └── Compiles for linux-arm64                    │
-│                                                  │
-│  Stage 2: Python 3.11-slim (Runtime)             │
-│  ├── Copies ARM64 N_m3u8DL-RE binary             │
-│  ├── Installs ffmpeg + libicu                    │
-│  ├── pip installs Python requirements            │
-│  └── Runs: python3 -m cantarella                 │
-│                                                  │
-└─────────────────────────────────────────────────┘
-```
-
----
-
-## 🛠 Management Commands
-
-```bash
-# 📋 View live bot logs
-docker logs -f aniwatchtv
-
-# 🔄 Restart the bot
-docker restart aniwatchtv
-
-# ⏹️ Stop the bot
-docker stop aniwatchtv
-
-# ▶️ Start a stopped bot
-docker start aniwatchtv
-
-# 🔨 Rebuild after updates
-cd /opt/AniwatchTvdl && \
-docker build -t aniwatchtv:latest . && \
-docker stop aniwatchtv && docker rm aniwatchtv && \
-docker run -d --name aniwatchtv --env-file .env \
-  --restart unless-stopped --memory=768m aniwatchtv:latest
-
-# 🧹 Free disk space (important for 10GB SSD!)
-docker system prune -af
-docker builder prune -af
-```
-
----
-
-## 📁 Repository Structure
-
-```
-solid-system/
-├── Dockerfile        # ARM64 multi-stage Docker build
-├── setup.sh          # One-command installer script
-├── README.md         # This file
-└── LICENSE           # MIT License
+### Fix 2: Broken x86 downloader binary
+Replace the old `curl` or `wget` command that downloads `N_m3u8DL-RE` with this ARM64-specific curl command:
+```dockerfile
+RUN curl -L -o /tmp/N_m3u8DL-RE.tar.gz \
+    "https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.5.1-beta/N_m3u8DL-RE_v0.5.1-beta_linux-arm64_20251029.tar.gz" && \
+    tar -xzf /tmp/N_m3u8DL-RE.tar.gz -C /usr/local/bin/ && \
+    rm /tmp/N_m3u8DL-RE.tar.gz && \
+    chmod +x /usr/local/bin/N_m3u8DL-RE
 ```
 
 ---
 
 ## ⚠️ Resource Notes
-
-> **💡 Build Time:** The first build takes **10–20 minutes** on ARM64 because it compiles N_m3u8DL-RE from .NET source. Subsequent builds use Docker cache and are much faster.
-
-> **💡 Memory:** The script automatically creates **1GB swap** to prevent OOM during build. The running bot container uses only **~150–300MB RAM**.
-
-> **💡 Disk:** After building, run `docker builder prune -af` to reclaim **~2–3GB** of build cache. The final image is ~500MB.
-
----
-
-## 🙏 Credits
-
-- **[AniwatchTvdl / Cantarella](https://github.com/abhinai2244/AniwatchTvdl)** — Original bot by [@abhinai2244](https://github.com/abhinai2244)
-- **[N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE)** — HLS/DASH downloader by [@nilaoda](https://github.com/nilaoda)
-
----
-
-<p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:1f6feb&height=100&section=footer" width="100%" />
-</p>
+> **💡 Fast Updates:** We use Docker layer caching. Re-running the scripts to update your bot code takes only 1-2 seconds.
+> **💡 Memory:** Always run your bots with `--memory=768m` or limit them in `docker-compose.yml` so you can safely run 3 bots on a 2GB RAM server without crashing.
