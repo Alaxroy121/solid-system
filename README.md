@@ -33,7 +33,7 @@ SSH into your **Amazon Linux 2023 ARM64** server and run the script for the bot 
 
 ### 1. AniwatchTvdl (Cantarella)
 ```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Alaxroy121/solid-system/main/setup.sh)"
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Alaxroy121/solid-system/main/Aniwatchtvdl.sh)"
 ```
 
 ### 2. Hentai DL Bot
