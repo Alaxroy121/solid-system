@@ -147,7 +147,7 @@ echo -e "\n${YELLOW}Creating x86_64-optimized Dockerfile...${NC}"
 cat > Dockerfile << 'DOCKERFILE_EOF'
 FROM python:3.11-slim
 
-# Install system dependencies
+# Install system dependencies + ICU libraries (required by N_m3u8DL-RE .NET runtime)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         curl \
@@ -158,6 +158,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3-dev \
         libffi-dev \
         libssl-dev \
+        libicu-dev \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -167,11 +168,6 @@ RUN curl -L -o /tmp/N_m3u8DL-RE.tar.gz \
     tar -xzf /tmp/N_m3u8DL-RE.tar.gz -C /usr/local/bin/ && \
     rm /tmp/N_m3u8DL-RE.tar.gz && \
     chmod +x /usr/local/bin/N_m3u8DL-RE
-
-# Download yt-dlp (x86_64 binary)
-RUN curl -L -o /usr/local/bin/yt-dlp \
-    "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux" && \
-    chmod +x /usr/local/bin/yt-dlp
 
 WORKDIR /app
 COPY requirements.txt .

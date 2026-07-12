@@ -52,8 +52,8 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Alaxroy121/solid-sy
 
 If you do not want to use the automated scripts and prefer to manually edit your own `Dockerfile`s for ARM64 compatibility, you must apply the following two fixes:
 
-### Fix 1: Missing Compilers for Python extensions (`tgcrypto`)
-Add this `apt-get` block to install `ffmpeg` and the required C-compilers:
+### Fix 1: Missing Compilers + ICU Libraries
+Add this `apt-get` block to install `ffmpeg`, the required C-compilers for `tgcrypto`, and **ICU libraries** (required by N_m3u8DL-RE's .NET runtime — without these, the downloader crashes):
 ```dockerfile
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -66,6 +66,7 @@ RUN apt-get update && \
     python3-dev \
     libffi-dev \
     libssl-dev \
+    libicu-dev \
     && rm -rf /var/lib/apt/lists/*
 ```
 
@@ -77,10 +78,6 @@ RUN curl -L -o /tmp/N_m3u8DL-RE.tar.gz \
     tar -xzf /tmp/N_m3u8DL-RE.tar.gz -C /usr/local/bin/ && \
     rm /tmp/N_m3u8DL-RE.tar.gz && \
     chmod +x /usr/local/bin/N_m3u8DL-RE
-
-RUN curl -L -o /usr/local/bin/yt-dlp \
-    "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64" && \
-    chmod +x /usr/local/bin/yt-dlp
 ```
 
 ---
